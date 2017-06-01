@@ -1,35 +1,78 @@
-import { Injectable } from '@angular/core';
-import { Subject, Observable } from 'rxjs';
-
-import { IEvent } from './event.model';
+import { Injectable, EventEmitter} from '@angular/core';
+import { Subject, Observable } from 'rxjs/Rx';
+import { Http, Response } from '@angular/http';
+import { IEvent, ISession } from './event.model';
 
 @Injectable()
 export class EventService {
 
-  getEvents(): Observable<IEvent[]> {
-    return new Observable(
-      observer => {
-        setInterval(
-          () => {
-            observer.next(EVENTS);
-            observer.complete();
-          },
-          500
-        )
-      }
-    )
-    // let subject = new Subject<IEvent[]>();
-    // setTimeout(() => {
-    //   subject.next(EVENTS);
-    //   subject.complete();
-    // }, 100)
-    // return subject;
+  constructor(private http: Http){}
+
+  // getEvents(): Observable<IEvent[]> {
+  //   return new Observable(
+  //     observer => {
+  //       setInterval(
+  //         () => {
+  //           observer.next(EVENTS);
+  //           observer.complete();
+  //         },
+  //         500
+  //       )
+  //     }
+  //   )
+  // }
+  //getEvents():Observable<IEvent[]> {
+  //  let subject = new Subject<IEvent[]>();
+  //  setTimeout(() => {
+  //    subject.next(EVENTS); 
+  //    subject.complete(); 
+  //  }, 100);
+  //  return subject;
+  //}
+
+  getEvents(): Observable<IEvent[]>{
+    return this.http.get('api/events').map( (response: Response) => {
+      return <IEvent[]>response.json()
+    }).catch(this.handleError)
+  }
+  handleError(error: Response){
+    //console.log('Get Events Error: ', Observable.throw(error.statusText));
+    return Observable.throw(error.statusText);
   }
 
   getEvent(id: number): IEvent {
     return EVENTS.find(event => event.id === id);
   }
 
+  saveEvent(event) {
+    event.id = 999;
+    event.session = [];
+    EVENTS.push(event) 
+  }
+
+  updateEvent(event){
+    let index =EVENTS.findIndex(x => x.id = event.id);
+    EVENTS[index]=event;
+  }
+
+  searchSessions(searchTerm: string){
+    var term = searchTerm.toLocaleLowerCase();
+    var results: ISession[] =[]
+    EVENTS.forEach(event => {
+      var matchingSessions = event.sessions.filter(session => 
+      session.name.toLocaleLowerCase().indexOf(term) > -1);
+      matchingSessions = matchingSessions.map((session:any) => {
+        session.eventId = event.id;
+        return session;
+      })
+      results = results.concat(matchingSessions);
+    })
+    var emitter = new EventEmitter(true);
+    setTimeout(()=>{
+      emitter.emit(results);
+    }, 100)
+    return emitter;
+  }
 }
 
 const EVENTS: IEvent[] = [
@@ -39,7 +82,7 @@ const EVENTS: IEvent[] = [
     date: new Date('9/26/2036'),
     time: '10:00 am',
     price: 599.99,
-    imageUrl: 'assets/images/angularconnect-shield.png',
+    imageUrl: '/assets/images/angularconnect-shield.png',
     location: {
       address: '1057 DT',
       city: 'London',
